@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>auひかり料金シミュレーター</title>
+    <style>
+        :root { --au-orange: #ff6600; --bg-gray: #f4f4f4; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background: var(--bg-gray); padding: 20px; color: #333; line-height: 1.5; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { border-left: 5px solid var(--au-orange); padding-left: 10px; font-size: 1.1em; margin-bottom: 15px; }
+        .btn-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .select-btn {
+            padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer;
+            text-align: center; font-weight: bold; transition: 0.3s; font-size: 0.9em;
+        }
+        .select-btn.active { border-color: var(--au-orange); background-color: #fffaf5; color: var(--au-orange); }
+        .select-btn input { display: none; }
+        .hidden { display: none; }
+        .breakdown { background: #fafafa; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 0.85em; border: 1px dashed #ccc; }
+        .price-large { font-size: 1.6em; color: var(--au-orange); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        .discount-row { color: #d00000; font-weight: bold; background: #fff5f5; }
+        .warning-box { color: #bf0000; font-size: 0.85em; font-weight: bold; background: #fff0f0; padding: 12px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffcccc; }
+        .info-box { color: #d00000; font-size: 0.85em; font-weight: bold; background: #fff5f5; padding: 12px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ffcccc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>auひかり料金シミュレーター</h1>
+
+    <div class="card">
+        <h2>1. サービスタイプを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="h-type" value="mansion" checked onchange="toggleOptions()">マンション(光)</label>
+            <label class="select-btn"><input type="radio" name="h-type" value="home" onchange="toggleOptions()">戸建て(光)</label>
+            <label class="select-btn"><input type="radio" name="h-type" value="h-router" onchange="toggleOptions()">ホームルーター</label>
+        </div>
+    </div>
+
+    <div id="mansion-type-card" class="card">
+        <h2>2. マンション方式を選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="m-detail" value="fiber" checked onchange="calculate()">光配線(1G)</label>
+            <label class="select-btn"><input type="radio" name="m-detail" value="type-g" onchange="calculate()">タイプG(664M)</label>
+            <label class="select-btn"><input type="radio" name="m-detail" value="type-v" onchange="calculate()">タイプV(100M)</label>
+            <label class="select-btn"><input type="radio" name="m-detail" value="type-e" onchange="calculate()">タイプE(100M)</label>
+        </div>
+    </div>
+
+    <div id="home-speed-card" class="card hidden">
+        <h2>2. 通信速度を選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="h-speed" value="1" checked onchange="calculate()">1ギガ</label>
+            <label class="select-btn"><input type="radio" name="h-speed" value="5" onchange="calculate()">5ギガ</label>
+            <label class="select-btn"><input type="radio" name="h-speed" value="10" onchange="calculate()">10ギガ</label>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>3. 詳細設定</h2>
+
+        <div id="opt-hikari">
+            <p>電話サービス</p>
+            <div class="btn-group">
+                <label class="select-btn"><input type="checkbox" id="check-phone" onchange="calculate()">auひかり 電話 (+550円)</label>
+            </div>
+
+            <p>テレビサービス</p>
+            <div class="btn-group">
+                <label class="select-btn active"><input type="radio" name="tv-plan" value="0" checked onchange="calculate()">テレビなし</label>
+                <label class="select-btn"><input type="radio" name="tv-plan" value="2178" onchange="calculate()">ジャンルパック</label>
+                <label class="select-btn"><input type="radio" name="tv-plan" value="3278" onchange="calculate()">オールジャンル</label>
+            </div>
+            <div id="tv-warning" class="info-box">
+                ※auひかりテレビサービスでは地デジ・BS放送は視聴できません。別途アンテナ等が必要です。
+            </div>
+        </div>
+
+        <div id="opt-router" class="hidden">
+            <p>オプション</p>
+            <div class="btn-group">
+                <label class="select-btn"><input type="checkbox" id="check-plus-area" onchange="calculate()">プラスエリアモード (+1,100円)</label>
+            </div>
+        </div>
+
+        <div id="year-select-box">
+            <p>利用期間を選択</p>
+            <div class="btn-group">
+                <label class="select-btn active"><input type="radio" name="calc-year" value="1" checked onchange="calculate()">1年目</label>
+                <label class="select-btn"><input type="radio" name="calc-year" value="2" onchange="calculate()">2年目</label>
+                <label class="select-btn"><input type="radio" name="calc-year" value="3" onchange="calculate()">3年目</label>
+                <label class="select-btn"><input type="radio" name="calc-year" value="4" onchange="calculate()">4年目〜</label>
+            </div>
+            <div id="warning-box" class="warning-box hidden"></div>
+        </div>
+    </div>
+
+    <button onclick="calculate()" style="width:100%; padding:18px; background:var(--au-orange); color:white; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:bold;">シミュレーション実行</button>
+
+    <div id="result" class="card hidden">
+        <h2>結果内訳</h2>
+        <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 20px;">
+            <div><p>月額支払額</p><span id="res-monthly" class="price-large">0</span>円</div>
+            <div><p>初期費用</p><span id="res-initial" class="price-large">0</span>円</div>
+        </div>
+        <div class="breakdown">
+            <strong>【費用明細】</strong>
+            <table id="breakdown-table"></table>
+            <p id="speed-label" style="font-size: 0.9em; font-weight: bold; color: #444; margin-top: 10px;"></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.select-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const input = this.querySelector('input');
+            if (input.type === 'radio') {
+                document.querySelectorAll(`input[name="${input.name}"]`).forEach(el => el.parentElement.classList.remove('active'));
+            }
+            this.classList.toggle('active', input.checked || input.type === 'radio');
+        });
+    });
+
+    function toggleOptions() {
+        const type = document.querySelector('input[name="h-type"]:checked').value;
+        document.getElementById('mansion-type-card').classList.toggle('hidden', type !== 'mansion');
+        document.getElementById('home-speed-card').classList.toggle('hidden', type !== 'home');
+        document.getElementById('opt-hikari').classList.toggle('hidden', type === 'h-router');
+        document.getElementById('opt-router').classList.toggle('hidden', type !== 'h-router');
+        calculate();
+    }
+
+    function calculate() {
+        const type = document.querySelector('input[name="h-type"]:checked').value;
+        const year = parseInt(document.querySelector('input[name="calc-year"]:checked').value);
+        let monthly = 0; let initial = 3300; let rows = ''; let speedLabel = '';
+        const warning = document.getElementById('warning-box');
+        warning.classList.add('hidden');
+
+        if (type === 'h-router') {
+            monthly = 5170;
+            rows += '<tr><td>ホームルーター 5G 基本料</td><td>5,170円</td></tr>';
+            if (year === 1) {
+                monthly -= 550;
+                rows += '<tr class="discount-row"><td>5G ルーター割 (13ヶ月間)</td><td>-550円</td></tr>';
+            } else {
+                warning.innerText = '【注意】2年目（14ヶ月目）以降は「5Gルーター割(-550円)」が終了するため料金が上がります。';
+                warning.classList.remove('hidden');
+            }
+            if (document.getElementById('check-plus-area').checked) {
+                monthly += 1100;
+                rows += '<tr><td>プラスエリアモード利用料</td><td>＋1,100円</td></tr>';
+            }
+            if (year <= 3) {
+                const dev = 880; monthly += dev;
+                rows += `<tr><td>端末代金 分割払い (36回)</td><td>＋${dev}円</td></tr>`;
+                monthly -= dev;
+                rows += `<tr class="discount-row"><td>毎月割 (端末代値引き)</td><td>-${dev}円</td></tr>`;
+            }
+            speedLabel = '最大 2.7Gbps (5Gエリア)';
+        }
+        else if (type === 'mansion') {
+            const mDetail = document.querySelector('input[name="m-detail"]:checked').value;
+            let base = 4180;
+            if (mDetail === 'fiber') { base = 4180; speedLabel = '最大 1Gbps'; }
+            else if (mDetail === 'type-g') { base = 4180; speedLabel = '最大 664Mbps'; }
+            else if (mDetail === 'type-v') { base = 4180; speedLabel = '最大 100Mbps'; }
+            else if (mDetail === 'type-e') { base = 3740; speedLabel = '最大 100Mbps'; }
+            monthly = base;
+            rows += `<tr><td>マンション基本料金</td><td>${base.toLocaleString()}円</td></tr>`;
+            if (year <= 2) {
+                const mC = 1434; monthly += mC;
+                rows += `<tr><td>基本工事費 分割払い (23回)</td><td>＋${mC.toLocaleString()}円</td></tr>`;
+                monthly -= mC;
+                rows += `<tr class="discount-row"><td>初期費用相当額割引</td><td>-${mC.toLocaleString()}円</td></tr>`;
+            }
+        }
+        else {
+            const speed = document.querySelector('input[name="h-speed"]:checked').value;
+            const basePrice = (year === 1) ? 5610 : (year === 2) ? 5500 : 5390;
+            monthly = basePrice;
+            rows += `<tr><td>ずっとギガ得プラン (${year >= 4 ? '4年目〜' : year + '年目'})</td><td>${basePrice.toLocaleString()}円</td></tr>`;
+            if (speed !== '1') {
+                const fee = (speed === '5') ? 550 : 1408;
+                monthly += fee;
+                rows += `<tr><td>${speed}ギガ サービス利用料</td><td>＋${fee.toLocaleString()}円</td></tr>`;
+                if (year <= 3) {
+                    monthly -= 550;
+                    rows += '<tr class="discount-row"><td>超高速値引き (3年間)</td><td>-550円</td></tr>';
+                } else {
+                    warning.innerText = '【注意】4年目以降は「超高速値引き(-550円)」が終了するため料金が上がります。';
+                    warning.classList.remove('hidden');
+                }
+            }
+            if (year <= 3) {
+                const hC = 1178; monthly += hC;
+                rows += `<tr><td>基本工事費 分割払い (35回)</td><td>＋${hC.toLocaleString()}円</td></tr>`;
+                if (document.getElementById('check-phone').checked) {
+                    monthly -= hC;
+                    rows += `<tr class="discount-row"><td>初期費用相当額割引 (電話セット)</td><td>-${hC.toLocaleString()}円</td></tr>`;
+                } else {
+                    rows += '<tr><td colspan="2" style="color:red; font-size:0.8em;">※電話なしのため工事費割引対象外</td></tr>';
+                }
+            }
+            speedLabel = speed + 'Gbps';
+        }
+
+        if (type !== 'h-router') {
+            if (document.getElementById('check-phone').checked) { monthly += 550; rows += '<tr><td>auひかり 電話</td><td>＋550円</td></tr>'; }
+            const tv = parseInt(document.querySelector('input[name="tv-plan"]:checked').value);
+            if (tv > 0) {
+                monthly += tv; initial += 880;
+                rows += `<tr><td>テレビ (STB込)</td><td>＋${tv.toLocaleString()}円</td></tr>`;
+                rows += '<tr><td>テレビ登録料 (初回のみ)</td><td>＋880円</td></tr>';
+            }
+        }
+
+        document.getElementById('res-monthly').innerText = monthly.toLocaleString();
+        document.getElementById('res-initial').innerText = initial.toLocaleString();
+        document.getElementById('breakdown-table').innerHTML = rows;
+        document.getElementById('speed-label').innerText = '通信速度目安：' + speedLabel;
+        document.getElementById('result').classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
