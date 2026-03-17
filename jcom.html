@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J:COM 料金シミュレーター</title>
+    <style>
+        :root { --jcom-blue: #004da1; --bg-gray: #f4f4f4; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background: var(--bg-gray); padding: 20px; color: #333; line-height: 1.5; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { border-left: 5px solid var(--jcom-blue); padding-left: 10px; font-size: 1.1em; margin-bottom: 15px; }
+        .btn-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .select-btn {
+            padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer;
+            text-align: center; font-weight: bold; transition: 0.3s; font-size: 0.85em;
+        }
+        .select-btn.active { border-color: var(--jcom-blue); background-color: #eef6ff; color: var(--jcom-blue); }
+        .select-btn input { display: none; }
+        .hidden { display: none; }
+        .breakdown { background: #fafafa; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 0.85em; border: 1px dashed #ccc; }
+        .price-large { font-size: 1.6em; color: var(--jcom-blue); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        .disclaimer { font-size: 0.8em; color: #666; margin-bottom: 15px; background: #f9f9f9; border: 1px solid #ddd; padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>J:COM 料金シミュレーター</h1>
+    <div class="disclaimer">
+        <strong>【表示料金について】</strong><br>
+        表示される金額は、各種割引適用前の標準的な月額料金です。お住まいの地域や建物の設備状況により、実際の料金は異なる場合があります。
+    </div>
+
+    <div class="card">
+        <h2>1. 住居タイプを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="h-type" value="mansion" checked onchange="updateSpeeds()">マンション</label>
+            <label class="select-btn"><input type="radio" name="h-type" value="home" onchange="updateSpeeds()">戸建て</label>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>2. 組み合わせを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="set-type" value="net" checked onchange="calculate()">ネット単体</label>
+            <label class="select-btn"><input type="radio" name="set-type" value="net_tv" onchange="calculate()">ネット ＋ TV</label>
+            <label class="select-btn"><input type="radio" name="set-type" value="net_tv_phone" onchange="calculate()">ネット ＋ TV ＋ 電話</label>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>3. ネット速度を選択</h2>
+        <div id="speed-options" class="btn-group"></div>
+    </div>
+
+    <button onclick="calculate()" style="width:100%; padding:18px; background:var(--jcom-blue); color:white; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:bold;">シミュレーション実行</button>
+
+    <div id="result" class="card hidden">
+        <h2>標準月額料金</h2>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <p>月額支払額（税込）</p>
+            <span id="res-monthly" class="price-large">0</span>円
+        </div>
+        <div class="breakdown">
+            <strong>【費用明細】</strong>
+            <table id="breakdown-table"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateSpeeds() {
+        const hType = document.querySelector('input[name="h-type"]:checked').value;
+        const speedGroup = document.getElementById('speed-options');
+
+        let html = '';
+        if (hType === 'mansion') {
+            html = `
+                <label class="select-btn"><input type="radio" name="speed" value="12m" onchange="calculate()">12M</label>
+                <label class="select-btn"><input type="radio" name="speed" value="40m" onchange="calculate()">40M</label>
+                <label class="select-btn"><input type="radio" name="speed" value="120m" onchange="calculate()">120M</label>
+                <label class="select-btn active"><input type="radio" name="speed" value="320m" checked onchange="calculate()">320M</label>
+                <label class="select-btn"><input type="radio" name="speed" value="1g" onchange="calculate()">1G</label>
+            `;
+        } else {
+            html = `
+                <label class="select-btn active"><input type="radio" name="speed" value="1g" checked onchange="calculate()">1ギガ</label>
+                <label class="select-btn"><input type="radio" name="speed" value="10g" onchange="calculate()">10ギガ</label>
+            `;
+        }
+        speedGroup.innerHTML = html;
+
+        speedGroup.querySelectorAll('.select-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                speedGroup.querySelectorAll('.select-btn').forEach(el => el.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+        calculate();
+    }
+
+    function calculate() {
+        const hType = document.querySelector('input[name="h-type"]:checked').value;
+        const setType = document.querySelector('input[name="set-type"]:checked').value;
+        const speed = document.querySelector('input[name="speed"]:checked').value;
+
+        let monthly = 0;
+        let rows = '';
+
+        if (hType === 'mansion') {
+            const base = { '12m': 3278, '40m': 3938, '120m': 4280, '320m': 5258, '1g': 6028 }[speed];
+            if (setType === 'net') monthly = base;
+            else if (setType === 'net_tv') monthly = base + 3080;
+            else monthly = base + 3960;
+        } else {
+            const base = (speed === '1g') ? 5610 : 6160;
+            if (setType === 'net') {
+                monthly = base;
+            } else if (setType === 'net_tv') {
+                monthly = base + 2376;
+            } else {
+                monthly = base + 2926;
+            }
+        }
+
+        rows += `<tr><td>基本プラン（${speed.toUpperCase()}）利用料</td><td>${monthly.toLocaleString()}円</td></tr>`;
+        rows += '<tr><td>Wi-Fiルーターレンタル料</td><td>0円</td></tr>';
+        rows += '<tr><td>セキュリティサービス利用料</td><td>0円</td></tr>';
+
+        document.getElementById('res-monthly').innerText = monthly.toLocaleString();
+        document.getElementById('breakdown-table').innerHTML = rows;
+        document.getElementById('result').classList.remove('hidden');
+
+        document.querySelectorAll('input[name="h-type"], input[name="set-type"]').forEach(input => {
+            input.parentElement.classList.toggle('active', input.checked);
+        });
+    }
+    updateSpeeds();
+</script>
+</body>
+</html>

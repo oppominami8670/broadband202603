@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ドコモ光 / home 5G 料金シミュレーター</title>
+    <style>
+        :root { --docomo-red: #ff0000; --bg-gray: #f4f4f4; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background: var(--bg-gray); padding: 20px; color: #333; line-height: 1.5; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { border-left: 5px solid var(--docomo-red); padding-left: 10px; font-size: 1.1em; margin-bottom: 15px; }
+        .btn-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .select-btn {
+            padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer;
+            text-align: center; font-weight: bold; transition: 0.3s; font-size: 0.85em;
+        }
+        .select-btn.active { border-color: var(--docomo-red); background-color: #fff5f5; color: var(--docomo-red); }
+        .select-btn input { display: none; }
+        .hidden { display: none; }
+        .breakdown { background: #fafafa; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 0.85em; border: 1px dashed #ccc; }
+        .price-large { font-size: 1.6em; color: var(--docomo-red); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        .discount-row { color: #d32f2f; font-weight: bold; }
+
+        .provider-info {
+            margin-top: -10px; margin-bottom: 20px; padding: 12px;
+            background: #fdfdfd; border: 1px solid #eee; border-radius: 8px;
+            font-size: 0.75em; color: #666; line-height: 1.6;
+        }
+        .provider-info strong { color: #444; display: block; margin-bottom: 6px; font-size: 1.05em; }
+        .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px; }
+        .p-name { background: white; border: 1px solid #f0f0f0; padding: 3px 6px; border-radius: 3px; text-align: center; color: #555; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ドコモ光 / home 5G シミュレーター</h1>
+
+    <div class="card">
+        <h2>1. タイプを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="h-type" value="mansion" checked onchange="updateUI()">マンション</label>
+            <label class="select-btn"><input type="radio" name="h-type" value="home" onchange="updateUI()">戸建て</label>
+            <label class="select-btn"><input type="radio" name="h-type" value="home5g" onchange="updateUI()">home 5G</label>
+        </div>
+    </div>
+
+    <div id="speed-card" class="card">
+        <h2>2. 通信速度を選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="speed" value="1g" checked onchange="calculate()">1ギガ</label>
+            <label class="select-btn"><input type="radio" name="speed" value="10g" onchange="calculate()">10ギガ</label>
+        </div>
+    </div>
+
+    <div id="provider-card" class="card">
+        <h2>3. プロバイダタイプを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="p-type" value="a" checked onchange="calculate()">タイプA</label>
+            <label class="select-btn"><input type="radio" name="p-type" value="b" onchange="calculate()">タイプB</label>
+            <label class="select-btn"><input type="radio" name="p-type" value="single" onchange="calculate()">単独タイプ</label>
+        </div>
+
+        <div id="provider-info-area" class="provider-info">
+            <strong id="provider-title">対応プロバイダ</strong>
+            <div id="provider-grid" class="provider-grid"></div>
+        </div>
+    </div>
+
+    <div id="option-card" class="card">
+        <h2>4. オプションを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn opt-hikari"><input type="checkbox" id="opt-phone" onchange="calculate()">ドコモ光電話 (550円)</label>
+            <label class="select-btn opt-hikari"><input type="checkbox" id="opt-tv" onchange="calculate()">ドコモ光テレビ (990円)</label>
+            <label class="select-btn"><input type="checkbox" id="opt-care" onchange="calculate()">デジタル機器補償 (550円)</label>
+        </div>
+    </div>
+
+    <button onclick="calculate()" style="width:100%; padding:18px; background:var(--docomo-red); color:white; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:bold;">シミュレーション実行</button>
+
+    <div id="result" class="card hidden">
+        <h2>標準月額料金</h2>
+        <div style="text-align: center; margin-bottom: 20px;">
+            <p>月額支払額（税込）</p>
+            <span id="res-monthly" class="price-large">0</span>円
+        </div>
+        <div class="breakdown">
+            <strong>【見積もり詳細】</strong>
+            <table id="breakdown-table"></table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const providers = {
+        a: ['GMOとくとくBB', 'ドコモnet', 'OCN インターネット', 'BIGLOBE', 'plala', '@nifty', 'DTI', '楽天ブロードバンド', 'andline', 'ic-net', 'Hi-ho', 'エディオンネット', 'シナプス', 'スピーディア', 'Coala', 'ネスク'],
+        b: ['OCN(旧プラン)', '@TCOM', 'TNC', 'AsahiNet', 'WAKWAK', 'ちゃんぷるネット']
+    };
+
+    function updateUI() {
+        const hType = document.querySelector('input[name="h-type"]:checked').value;
+        const speedCard = document.getElementById('speed-card');
+        const providerCard = document.getElementById('provider-card');
+        const hikariOptions = document.querySelectorAll('.opt-hikari');
+
+        if (hType === 'home5g') {
+            speedCard.classList.add('hidden');
+            providerCard.classList.add('hidden');
+            hikariOptions.forEach(el => el.classList.add('hidden'));
+        } else {
+            speedCard.classList.remove('hidden');
+            providerCard.classList.remove('hidden');
+            hikariOptions.forEach(el => el.classList.remove('hidden'));
+        }
+        calculate();
+    }
+
+    function calculate() {
+        const hType = document.querySelector('input[name="h-type"]:checked').value;
+        const pType = document.querySelector('input[name="p-type"]:checked').value;
+        const isPhone = document.getElementById('opt-phone').checked;
+        const isTv = document.getElementById('opt-tv').checked;
+        const isCare = document.getElementById('opt-care').checked;
+
+        const grid = document.getElementById('provider-grid');
+        const title = document.getElementById('provider-title');
+        grid.innerHTML = '';
+
+        if (pType === 'a') {
+            title.innerText = `タイプA 全${providers.a.length}社`;
+            providers.a.forEach(p => { grid.innerHTML += `<div class="p-name">${p}</div>`; });
+        } else if (pType === 'b') {
+            title.innerText = `タイプB 全${providers.b.length}社`;
+            providers.b.forEach(p => { grid.innerHTML += `<div class="p-name">${p}</div>`; });
+        } else {
+            title.innerText = '単独タイプ';
+            grid.innerHTML = "<div style='grid-column: 1/-1;'>プロバイダ料金が別途発生します。</div>";
+        }
+
+        let monthly = 0;
+        let rows = '';
+
+        if (hType === 'home5g') {
+            monthly = 5280;
+            rows += '<tr><td>home 5G プラン料金</td><td>5,280円</td></tr><tr><td>home 5G 端末分割金 (36回)</td><td>1,980円</td></tr><tr class="discount-row"><td>月々サポート (端末代相殺)</td><td>-1,980円</td></tr>';
+        } else {
+            const speed = document.querySelector('input[name="speed"]:checked').value;
+            if (speed === '1g') {
+                if (hType === 'mansion') monthly = (pType === 'a') ? 4400 : (pType === 'b' ? 4620 : 4180);
+                else monthly = (pType === 'a') ? 5720 : (pType === 'b' ? 5940 : 5500);
+            } else {
+                monthly = (pType === 'a') ? 6380 : (pType === 'b' ? 6600 : 5940);
+            }
+            rows += `<tr><td>ドコモ光 ${speed === '1g' ? '1ギガ' : '10ギガ'}</td><td>${monthly.toLocaleString()}円</td></tr><tr><td>標準工事費分割金 (24回)</td><td>917円</td></tr><tr class="discount-row"><td>工事費無料特典 (相殺)</td><td>-917円</td></tr>`;
+            if (isPhone) { monthly += 550; rows += '<tr><td>ドコモ光電話</td><td>550円</td></tr>'; }
+            if (isTv) { monthly += 990; rows += '<tr><td>ドコモ光テレビ</td><td>990円</td></tr>'; }
+        }
+        if (isCare) { monthly += 550; rows += '<tr><td>デジタル機器補償</td><td>550円</td></tr>'; }
+
+        document.getElementById('res-monthly').innerText = monthly.toLocaleString();
+        document.getElementById('breakdown-table').innerHTML = rows;
+        document.getElementById('result').classList.remove('hidden');
+        document.querySelectorAll('.select-btn').forEach(btn => {
+            const input = btn.querySelector('input');
+            if (input) btn.classList.toggle('active', input.checked);
+        });
+    }
+    updateUI();
+</script>
+</body>
+</html>

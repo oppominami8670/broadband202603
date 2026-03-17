@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NURO光 料金シミュレーター</title>
+    <style>
+        :root { --nuro-green: #29b6f6; --bg-gray: #f4f4f4; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background: var(--bg-gray); padding: 20px; color: #333; line-height: 1.5; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { border-left: 5px solid var(--nuro-green); padding-left: 10px; font-size: 1.1em; margin-bottom: 15px; }
+        .btn-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .select-btn {
+            padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer;
+            text-align: center; font-weight: bold; transition: 0.3s; font-size: 0.9em;
+        }
+        .select-btn.active { border-color: var(--nuro-green); background-color: #f0faff; color: var(--nuro-green); }
+        .select-btn input { display: none; }
+        .hidden { display: none; }
+        .breakdown { background: #fafafa; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 0.85em; border: 1px dashed #ccc; }
+        .price-large { font-size: 1.6em; color: var(--nuro-green); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        .discount-row { color: #d00000; font-weight: bold; background: #fff5f5; }
+        .warning-box { color: #bf0000; font-size: 0.85em; font-weight: bold; background: #fff0f0; padding: 12px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffcccc; }
+        .info-box { color: #d00000; font-size: 0.85em; font-weight: bold; background: #fff5f5; padding: 12px; border-radius: 5px; margin-top: 10px; border: 1px solid #ffcccc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>NURO光 料金シミュレーター</h1>
+
+    <div class="card">
+        <h2>1. 住居タイプを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="h-type" value="mansion" checked onchange="calculate()">マンション (2年契約)</label>
+            <label class="select-btn"><input type="radio" name="h-type" value="home" onchange="calculate()">戸建て (3年契約)</label>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>2. プラン（速度）を選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="speed-type" value="2g" checked onchange="calculate()">2ギガ</label>
+            <label class="select-btn"><input type="radio" name="speed-type" value="10g" onchange="calculate()">10ギガ</label>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>3. 詳細設定</h2>
+
+        <p>電話サービス</p>
+        <div class="btn-group">
+            <label class="select-btn"><input type="checkbox" id="check-phone" onchange="calculate()">NURO光 電話 (+550円)</label>
+        </div>
+
+        <p>テレビサービス</p>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="tv-plan" value="0" checked onchange="calculate()">テレビなし</label>
+            <label class="select-btn"><input type="radio" name="tv-plan" value="1650" onchange="calculate()">ひかりTV (+1,650円〜)</label>
+        </div>
+        <div class="info-box">
+            ※ひかりTVで地デジを視聴できるのは基本的に1台のみです。2台目以降は別途チューナーの契約や月額料金が発生します。
+        </div>
+
+        <p style="margin-top: 20px;">利用期間を選択</p>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="calc-period" value="1" checked onchange="calculate()">1ヶ月目</label>
+            <label class="select-btn"><input type="radio" name="calc-period" value="2" onchange="calculate()">2〜24ヶ月目</label>
+            <label id="btn-period-25" class="select-btn"><input type="radio" name="calc-period" value="25" onchange="calculate()">25〜36ヶ月目</label>
+            <label id="btn-period-37" class="select-btn"><input type="radio" name="calc-period" value="37" onchange="calculate()">37ヶ月目〜</label>
+        </div>
+        <div id="warning-box" class="warning-box hidden"></div>
+    </div>
+
+    <button onclick="calculate()" style="width:100%; padding:18px; background:var(--nuro-green); color:white; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:bold;">シミュレーション実行</button>
+
+    <div id="result" class="card hidden">
+        <h2>結果内訳</h2>
+        <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 20px;">
+            <div><p>月額支払額</p><span id="res-monthly" class="price-large">0</span>円</div>
+            <div><p>初期費用</p><span id="res-initial" class="price-large">0</span>円</div>
+        </div>
+        <div class="breakdown">
+            <strong>【費用明細】</strong>
+            <table id="breakdown-table"></table>
+            <div id="contract-note" style="margin-top:15px; font-size: 0.85em; color: #d00000; border-top: 1px solid #eee; padding-top: 10px;">
+                </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.select-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const input = this.querySelector('input');
+            if (input.type === 'radio') {
+                document.querySelectorAll(`input[name="${input.name}"]`).forEach(el => el.parentElement.classList.remove('active'));
+            }
+            this.classList.toggle('active', input.checked || input.type === 'radio');
+        });
+    });
+
+    function calculate() {
+        const hType = document.querySelector('input[name="h-type"]:checked').value;
+        const speed = document.querySelector('input[name="speed-type"]:checked').value;
+        const period = parseInt(document.querySelector('input[name="calc-period"]:checked').value);
+        let monthly = 0; let initial = 3300; let rows = '';
+        const warning = document.getElementById('warning-box');
+        const note = document.getElementById('contract-note');
+        warning.classList.add('hidden');
+
+        let basePrice = 0;
+        if (hType === 'home') {
+            basePrice = (speed === '2g') ? 5500 : 6050;
+        } else {
+            basePrice = (speed === '2g') ? 3850 : 4400;
+        }
+
+        const bonusName = (hType === 'home') ? '3ねん定額割' : '2ねん定額割';
+        const discountPrice = (hType === 'home') ? 3980 : 2980;
+        const discountDuration = (hType === 'home') ? 36 : 24;
+        const constMonths = (hType === 'home') ? 36 : 24;
+
+        if (period === 1) {
+            monthly = 0;
+            rows += '<tr><td>月額基本料金 (初月無料)</td><td>0円</td></tr>';
+            rows += '<tr><td>契約事務手数料</td><td>3,300円</td></tr>';
+        } else if (period <= discountDuration) {
+            monthly = discountPrice;
+            const discountAmount = basePrice - discountPrice;
+            rows += `<tr><td>基本料金 (${speed.toUpperCase()})</td><td>${basePrice.toLocaleString()}円</td></tr>`;
+            rows += `<tr class="discount-row"><td>${bonusName}</td><td>-${discountAmount.toLocaleString()}円</td></tr>`;
+        } else {
+            monthly = basePrice;
+            rows += `<tr><td>基本料金 (${speed.toUpperCase()})</td><td>${basePrice.toLocaleString()}円</td></tr>`;
+
+            if ((hType === 'home' && period === 37) || (hType === 'mansion' && period === 25)) {
+                warning.innerText = `【重要】${bonusName}が終了し、通常料金（${basePrice.toLocaleString()}円）に推移します。`;
+                warning.classList.remove('hidden');
+            }
+        }
+
+        if (period <= constMonths && period !== 37) {
+            let constFee = 0;
+            if (hType === 'home') {
+                constFee = (period === 1) ? 1230 : 1222;
+            } else {
+                constFee = (period === 1) ? 1841 : 1833;
+            }
+            rows += `<tr><td>基本工事費 分割代金 (${constMonths}回)</td><td>＋${constFee.toLocaleString()}円</td></tr>`;
+            rows += `<tr class="discount-row"><td>工事費相当割引</td><td>-${constFee.toLocaleString()}円</td></tr>`;
+        }
+
+        if (document.getElementById('check-phone').checked) {
+            monthly += 550;
+            rows += '<tr><td>NURO光 電話</td><td>＋550円</td></tr>';
+        }
+        const tv = parseInt(document.querySelector('input[name="tv-plan"]:checked').value);
+        if (tv > 0) {
+            monthly += tv;
+            rows += `<tr><td>ひかりTV for NURO</td><td>＋${tv.toLocaleString()}円</td></tr>`;
+        }
+
+        note.innerHTML = `<strong>■ 解約時の注意点</strong><br>
+            ・契約形態：${hType === 'home' ? '3年契約（自動更新）' : '2年契約（自動更新）'}<br>
+            ・工事費残債：<strong>${constMonths}回払い</strong>の途中で解約すると、未払いの残債（最大44,000円）が一括請求されます。`;
+
+        document.getElementById('res-monthly').innerText = monthly.toLocaleString();
+        document.getElementById('res-initial').innerText = initial.toLocaleString();
+        document.getElementById('breakdown-table').innerHTML = rows;
+        document.getElementById('result').classList.remove('hidden');
+    }
+
+    calculate();
+</script>
+</body>
+</html>

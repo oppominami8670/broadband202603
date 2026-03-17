@@ -19,36 +19,6 @@
 <body>
   <div class="container">
     <h1>固定回線料金シミュレーター</h1>
-    <div id="tabs" class="tabs"></div>
-    <div id="tab-contents"></div>
-  </div>
-
-  <script>
-    const simulators = [
-      { id: 'rakuten', label: '楽天ひかり', src: '楽天ひかり.html', title: '楽天ひかりシミュレーター' },
-      { id: 'au', label: 'auひかり', src: 'auひかり.html', title: 'auひかりシミュレーター' },
-      { id: 'nuro', label: 'NURO光', src: 'nuro光.html', title: 'NURO光シミュレーター' },
-      { id: 'softbank', label: 'ソフトバンク光', src: 'ソフトバンク光.html', title: 'ソフトバンク光シミュレーター' },
-      { id: 'docomo', label: 'ドコモ光', src: 'ドコモ光.html', title: 'ドコモ光シミュレーター' },
-      { id: 'jcom', label: 'J:COM', src: 'jcom.html', title: 'J:COMシミュレーター' }
-    ];
-
-    const tabsContainer = document.getElementById('tabs');
-    const contentsContainer = document.getElementById('tab-contents');
-
-    simulators.forEach((sim, index) => {
-      const button = document.createElement('button');
-      button.className = `tab-btn${index === 1 ? ' active' : ''}`;
-      button.textContent = sim.label;
-      button.addEventListener('click', () => openTab(sim.id, button));
-      tabsContainer.appendChild(button);
-
-      const content = document.createElement('div');
-      content.id = sim.id;
-      content.className = `tab-content${index === 1 ? ' active' : ''}`;
-      content.innerHTML = `<iframe title="${sim.title}" src="${sim.src}"></iframe>`;
-      contentsContainer.appendChild(content);
-    });
 
     function openTab(tabId, buttonElement) {
       document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('active'));

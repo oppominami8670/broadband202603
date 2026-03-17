@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>料金シミュレーター（Turbo値引き修正版）</title>
+    <style>
+        :root { --rakuten-red: #f39800; --rakuten-orange: #f39800; --bg-gray: #f4f4f4; }
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background: var(--bg-gray); padding: 20px; color: #333; line-height: 1.5; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { border-left: 5px solid var(--rakuten-red); padding-left: 10px; font-size: 1.1em; margin-bottom: 15px; }
+        .btn-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .select-btn {
+            padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer;
+            text-align: center; font-weight: bold; transition: 0.3s; font-size: 0.9em;
+        }
+        .select-btn.active { border-color: var(--rakuten-red); background-color: #fff0f0; color: var(--rakuten-red); }
+        .select-btn.disabled { background-color: #eee; border-color: #ccc; color: #999; cursor: not-allowed; }
+        .select-btn input { display: none; }
+        .hidden { display: none; }
+        .breakdown { background: #fafafa; padding: 15px; border-radius: 8px; margin-top: 15px; font-size: 0.85em; border: 1px dashed #ccc; }
+        .price-large { font-size: 1.6em; color: var(--rakuten-orange); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        .discount-row { color: #d00000; font-weight: bold; background: #fff5f5; }
+        .notice { color: #bf0000; font-size: 0.8em; margin-top: -15px; margin-bottom: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>料金シミュレーター</h1>
+
+    <div class="card">
+        <h2>1. サービスを選択</h2>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="service" value="hikari" checked onchange="toggleSections()">楽天ひかり</label>
+            <label class="select-btn"><input type="radio" name="service" value="turbo" onchange="toggleSections()">Rakuten Turbo</label>
+            <label class="select-btn"><input type="radio" name="service" value="pocket" onchange="toggleSections()">WiFi Pocket 5G</label>
+        </div>
+    </div>
+
+    <div id="section-hikari" class="card">
+        <h2>2. 楽天ひかり 設定</h2>
+        <p>住居タイプ</p>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="h-type" value="4180" checked onchange="checkTvAvailability()">マンション</label>
+            <label class="select-btn"><input type="radio" name="h-type" value="5280" onchange="checkTvAvailability()">戸建て</label>
+        </div>
+        <p>オプション加入</p>
+        <div class="btn-group">
+            <label class="select-btn"><input type="checkbox" id="check-phone">ひかり電話 (+550円)</label>
+            <label id="tv-btn-label" class="select-btn"><input type="checkbox" id="check-tv" onchange="toggleTvOptions()">フレッツ・テレビ (+990円)</label>
+        </div>
+        <div id="tv-warning" class="notice hidden">※マンションタイプではフレッツ・テレビはご利用いただけません。</div>
+
+        <div id="tv-detail" class="hidden">
+            <p>テレビ接続台数</p>
+            <div class="btn-group">
+                <label class="select-btn active"><input type="radio" name="tv-num" value="7150" checked>1台 (7,150円)</label>
+                <label class="select-btn"><input type="radio" name="tv-num" value="21780">2〜4台 (21,780円)</label>
+            </div>
+        </div>
+    </div>
+
+    <div id="section-device" class="card hidden">
+        <h2>2. 支払い設定</h2>
+        <p>端末代金支払い</p>
+        <div class="btn-group">
+            <label class="select-btn active"><input type="radio" name="pay-type" value="full" checked>一括払い</label>
+            <label class="select-btn"><input type="radio" name="pay-type" value="24">24回払い</label>
+            <label class="select-btn"><input type="radio" name="pay-type" value="48">48回払い</label>
+        </div>
+        <p id="turbo-info" style="font-size: 0.8em; color: #666;"></p>
+    </div>
+
+    <button onclick="calculate()" style="width:100%; padding:18px; background:var(--rakuten-red); color:white; border:none; border-radius:8px; font-size:1.1em; cursor:pointer; font-weight:bold;">シミュレーション実行</button>
+
+    <div id="result" class="card hidden">
+        <h2>シミュレーション結果</h2>
+        <div style="display: flex; justify-content: space-around; text-align: center; margin-bottom: 20px;">
+            <div><p>月額支払額</p><span id="res-monthly" class="price-large">0</span>円</div>
+            <div><p>初期費用合計</p><span id="res-initial" class="price-large">0</span>円</div>
+        </div>
+        <div class="breakdown">
+            <strong>【費用内訳・キャンペーン】</strong>
+            <table id="breakdown-table"></table>
+            <div id="res-speed" style="margin-top:10px; font-weight:bold; color:#666; font-size:0.9em;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.onload = function() { checkTvAvailability(); };
+
+    document.querySelectorAll('.select-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const input = this.querySelector('input');
+            if (input.disabled) return;
+            const name = input.name;
+            if (input.type === 'radio') {
+                document.querySelectorAll(`input[name="${name}"]`).forEach(el => el.parentElement.classList.remove('active'));
+            }
+            this.classList.toggle('active', input.checked || input.type === 'radio');
+        });
+    });
+
+    function checkTvAvailability() {
+        const hType = document.querySelector('input[name="h-type"]:checked').value;
+        const tvCheckbox = document.getElementById('check-tv');
+        const tvLabel = document.getElementById('tv-btn-label');
+        const tvWarning = document.getElementById('tv-warning');
+        if (hType === '4180') {
+            tvCheckbox.checked = false; tvCheckbox.disabled = true;
+            tvLabel.classList.add('disabled'); tvLabel.classList.remove('active');
+            tvWarning.classList.remove('hidden');
+            toggleTvOptions();
+        } else {
+            tvCheckbox.disabled = false; tvLabel.classList.remove('disabled');
+            tvWarning.classList.add('hidden');
+        }
+    }
+
+    function toggleSections() {
+        const val = document.querySelector('input[name="service"]:checked').value;
+        document.getElementById('section-hikari').classList.toggle('hidden', val !== 'hikari');
+        document.getElementById('section-device').classList.toggle('hidden', val === 'hikari');
+        if (val === 'turbo') {
+            document.getElementById('turbo-info').innerText = '※48回払い選択時、月額料金から端末代相当額(最大866円/月)を値引きします。';
+        } else {
+            document.getElementById('turbo-info').innerText = '';
+        }
+    }
+
+    function toggleTvOptions() {
+        document.getElementById('tv-detail').classList.toggle('hidden', !document.getElementById('check-tv').checked);
+    }
+
+    function calculate() {
+        const service = document.querySelector('input[name="service"]:checked').value;
+        let monthly = 0; let initial = 0; let rows = ''; let speed = '';
+
+        if (service === 'hikari') {
+            const isMansion = document.querySelector('input[name="h-type"]:checked').value === '4180';
+            monthly = isMansion ? 4180 : 5280;
+            initial = 1980 + 22000;
+            rows += `<tr><td>楽天ひかり 基本料金</td><td>${monthly.toLocaleString()}円</td></tr>`;
+            rows += '<tr><td>登録事務手数料</td><td>1,980円</td></tr>';
+            rows += '<tr><td>基本工事費（標準）</td><td>22,000円</td></tr>';
+            if (document.getElementById('check-phone').checked) {
+                monthly += 550; initial += 1100;
+                rows += '<tr><td>ひかり電話（月額）</td><td>＋550円</td></tr>';
+                rows += '<tr><td>ひかり電話工事費（初回）</td><td>＋1,100円</td></tr>';
+            }
+            if (!isMansion && document.getElementById('check-tv').checked) {
+                monthly += 990;
+                const tvConst = parseInt(document.querySelector('input[name="tv-num"]:checked').value);
+                initial += (3080 + 3300 + tvConst);
+                rows += '<tr><td>フレッツ・テレビ（月額）</td><td>＋990円</td></tr>';
+                rows += `<tr><td>テレビ初期（登録料・基本工事・接続）</td><td>＋${(3080 + 3300 + tvConst).toLocaleString()}円</td></tr>`;
+            }
+            speed = '最大 1Gbps';
+        }
+        else if (service === 'turbo') {
+            monthly = 4840; initial = 3300;
+            rows += '<tr><td>Rakuten Turbo 基本料金</td><td>4,840円</td></tr>';
+            rows += '<tr><td>登録事務手数料</td><td>3,300円</td></tr>';
+            const payType = document.querySelector('input[name="pay-type"]:checked').value;
+            const devicePrice = 41580;
+            if (payType === 'full') {
+                initial += devicePrice;
+                rows += '<tr><td>端末代金（一括）</td><td>41,580円</td></tr>';
+            } else {
+                const div = parseInt(payType);
+                const monthlyDiv = Math.floor(devicePrice / div);
+                monthly += monthlyDiv;
+                rows += `<tr><td>端末代金分割（${div}回払い）</td><td>＋${monthlyDiv.toLocaleString()}円</td></tr>`;
+
+                if (div === 48) {
+                    const discount = 866;
+                    const discountPeriod = 48;
+                    monthly -= discount;
+                    rows += `<tr class="discount-row"><td>端末代金相殺値引き</td><td>-${discount}円</td></tr>`;
+                    rows += `<tr class="discount-row"><td colspan="2" style="font-size:0.8em;">※${discountPeriod}ヶ月間、月額料金から値引きされます</td></tr>`;
+                } else {
+                    rows += '<tr><td colspan="2" style="font-size:0.8em; color:#666;">※24回払いは端末代金相殺引きの対象外です</td></tr>';
+                }
+            }
+            speed = '最大 2.1Gbps';
+        }
+        else {
+            monthly = 3278; initial = 0;
+            rows += '<tr><td>Rakuten最強プラン（無制限）</td><td>3,278円</td></tr>';
+            const payType = document.querySelector('input[name="pay-type"]:checked').value;
+            if (payType === 'full') {
+                initial += 16800;
+                rows += '<tr><td>端末代金（一括）</td><td>16,800円</td></tr>';
+            } else {
+                const div = parseInt(payType);
+                const monthlyDiv = Math.floor(16800 / div);
+                monthly += monthlyDiv;
+                rows += `<tr><td>端末代金分割（${div}回払い）</td><td>＋${monthlyDiv.toLocaleString()}円</td></tr>`;
+            }
+            speed = '最大 2.14Gbps';
+        }
+
+        document.getElementById('res-monthly').innerText = monthly.toLocaleString();
+        document.getElementById('res-initial').innerText = initial.toLocaleString();
+        document.getElementById('breakdown-table').innerHTML = rows;
+        document.getElementById('res-speed').innerText = '通信速度目安：' + speed;
+        document.getElementById('result').classList.remove('hidden');
+    }
+</script>
+</body>
+</html>
