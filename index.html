@@ -20,36 +20,6 @@
   <div class="container">
     <h1>固定回線料金シミュレーター</h1>
 
-    <div class="tabs">
-      <button class="tab-btn" onclick="openTab('rakuten', this)">楽天ひかり</button>
-      <button class="tab-btn active" onclick="openTab('au', this)">auひかり</button>
-      <button class="tab-btn" onclick="openTab('nuro', this)">NURO光</button>
-      <button class="tab-btn" onclick="openTab('softbank', this)">ソフトバンク光</button>
-      <button class="tab-btn" onclick="openTab('docomo', this)">ドコモ光</button>
-      <button class="tab-btn" onclick="openTab('jcom', this)">J:COM</button>
-    </div>
-
-    <div id="au" class="tab-content active">
-      <iframe title="auひかりシミュレーター" src="auひかり.html"></iframe>
-    </div>
-    <div id="nuro" class="tab-content">
-      <iframe title="NURO光シミュレーター" src="nuro光.html"></iframe>
-    </div>
-    <div id="softbank" class="tab-content">
-      <iframe title="ソフトバンク光シミュレーター" src="ソフトバンク光.html"></iframe>
-    </div>
-    <div id="docomo" class="tab-content">
-      <iframe title="ドコモ光シミュレーター" src="ドコモ光.html"></iframe>
-    </div>
-    <div id="rakuten" class="tab-content">
-      <iframe title="楽天ひかりシミュレーター" src="楽天ひかり.html"></iframe>
-    </div>
-    <div id="jcom" class="tab-content">
-      <iframe title="J:COMシミュレーター" src="jcom.html"></iframe>
-    </div>
-  </div>
-
-  <script>
     function openTab(tabId, buttonElement) {
       document.querySelectorAll('.tab-content').forEach((el) => el.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach((el) => el.classList.remove('active'));
